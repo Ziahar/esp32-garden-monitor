@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Моніторинг рослини</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f8ff; padding: 20px; }
+    .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+    h1 { text-align: center; color: #2e8b57; }
+    .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 800px) { .charts { grid-template-columns: 1fr; } }
+    .value { font-size: 2em; text-align: center; margin: 10px 0; color: #333; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Моніторинг рослини</h1>
+    
+    <div style="text-align:center; margin:30px 0;">
+      <div class="value">Температура: <span id="temp">--</span>°C</div>
+      <div class="value">Вологість повітря: <span id="hum">--</span>%</div>
+      <div class="value">Вологість ґрунту: <span id="soil">--</span></div>
+    </div>
+
+    <div class="charts">
+      <canvas id="tempChart"></canvas>
+      <canvas id="soilChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const tempCtx = document.getElementById('tempChart').getContext('2d');
+    const soilCtx = document.getElementById('soilChart').getContext('2d');
+
+    const tempChart = new Chart(tempCtx, { type: 'line', data: { labels: [], datasets: [
+      { label: 'Температура (°C)', data: [], borderColor: 'red', tension: 0.3 },
+      { label: 'Вологість повітря (%)', data: [], borderColor: 'blue', tension: 0.3 }
+    ]}, options: { responsive: true, scales: { y: { beginAtZero: false }}}});
+
+    const soilChart = new Chart(soilCtx, { type: 'line', data: { labels: [], datasets: [{
+      label: 'Вологість ґрунту (0-4095)', data: [], borderColor: 'brown', backgroundColor: 'rgba(139,69,19,0.2)', fill: true, tension: 0.3
+    }]}, options: { responsive: true }});
+
+    function updateData() {
+      fetch('/api/latest')
+        .then(r => r.json())
+        .then(data => {
+          if (data.length === 0) return;
+
+          const latest = data[data.length - 1];
+          document.getElementById('temp').textContent = latest.temperature;
+          document.getElementById('hum').textContent = latest.humidity;
+          document.getElementById('soil').textContent = latest.soil;
+
+          const labels = data.map(d => new Date(d.timestamp).toLocaleTimeString('uk-UA'));
+
+          tempChart.data.labels = labels;
+          tempChart.data.datasets[0].data = data.map(d => d.temperature);
+          tempChart.data.datasets[1].data = data.map(d => d.humidity);
+          tempChart.update('quiet');
+
+          soilChart.data.labels = labels;
+          soilChart.data.datasets[0].data = data.map(d => d.soil);
+          soilChart.update('quiet');
+        });
+    }
+
+    updateData();
+    setInterval(updateData, 10000); // оновлення кожні 10 сек
+  </script>
+</body>
+</html>
